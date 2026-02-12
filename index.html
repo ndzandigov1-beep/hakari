@@ -244,6 +244,44 @@
             min-height: 200px;
         }
 
+        /* ---------- БЛОК ЛОКАЛЬНОЙ СТАТИСТИКИ ---------- */
+        .stats-container {
+            margin-top: 20px;
+            padding: 15px 20px;
+            background: #0b171c;
+            border-radius: 16px;
+            border: 1px solid #3e7b8a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            color: #d6edf0;
+            font-size: 1em;
+        }
+        .stats-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stats-icon {
+            font-size: 1.4em;
+        }
+        .reset-btn {
+            background: #2e4a55;
+            border: 1px solid #6f9faa;
+            padding: 6px 12px;
+            border-radius: 30px;
+            color: white;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: 0.1s;
+            box-shadow: 0 3px 0 #0f1f24;
+        }
+        .reset-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #0f1f24;
+        }
+
         /* ---------- СТОП-КНОПКА ---------- */
         .stop-button {
             margin-top: 20px;
@@ -331,6 +369,23 @@
         <!-- ТЕКСТОВЫЙ ВЫВОД -->
         <div class="output" id="outputPanel">🎲 Нажми кнопку, чтобы начать</div>
         
+        <!-- ЛОКАЛЬНАЯ СТАТИСТИКА -->
+        <div id="statsContainer" class="stats-container">
+            <div class="stats-item">
+                <span class="stats-icon">🎮</span>
+                <span>Игр: <span id="gamesPlayed">0</span></span>
+            </div>
+            <div class="stats-item">
+                <span class="stats-icon">🏆</span>
+                <span>Джекпотов: <span id="jackpotsWon">0</span></span>
+            </div>
+            <div class="stats-item">
+                <span class="stats-icon">📊</span>
+                <span>Удача: <span id="luckPercent">0%</span></span>
+            </div>
+            <button id="resetStatsBtn" class="reset-btn">Сброс</button>
+        </div>
+
         <!-- КНОПКА ОСТАНОВКИ ДЖЕКПОТА -->
         <div id="stopJackpotContainer" class="stop-button hidden">
             <button id="stopJackpotBtn" class="stop-btn" onclick="stopJackpot()">
@@ -344,7 +399,7 @@
                 <input type="checkbox" id="soundCheckbox" checked> Вкл.
             </label>
         </div>
-        <div class="footer">баланс 30% · цветные кубы · тряска · гифка на 18с</div>
+        <div class="footer">баланс 30% · цветные кубы · тряска · гифка на 18с · локальная статистика</div>
     </div>
 
     <!-- АУДИО -->
@@ -357,7 +412,7 @@
 
     <script>
         // ---------- НАСТРОЙКИ ----------
-        const JACKPOT_GIF_DELAY = 19400; // ⬅️ 19.4 секунд – ровно в момент слова "ДЖЕКПОТ!"
+        const JACKPOT_GIF_DELAY = 18000; // ⬅️ 18 секунд – ровно в момент слова "ДЖЕКПОТ!"
 
         // ---------- ТАБЛИЦЫ БАЛАНСА (30%) ----------
         const COLOR_TABLE = [
@@ -592,11 +647,57 @@
             indices.forEach(i => d8elements[i].classList.remove('reroll-target'));
         }
 
+        // ---------- ЛОКАЛЬНАЯ СТАТИСТИКА (localStorage) ----------
+        let gamesPlayed = 0;
+        let jackpotsWon = 0;
+
+        function loadStats() {
+            gamesPlayed = parseInt(localStorage.getItem('hakari_games')) || 0;
+            jackpotsWon = parseInt(localStorage.getItem('hakari_jackpots')) || 0;
+            updateStatsDisplay();
+        }
+
+        function saveStats() {
+            localStorage.setItem('hakari_games', gamesPlayed);
+            localStorage.setItem('hakari_jackpots', jackpotsWon);
+        }
+
+        function updateStatsDisplay() {
+            document.getElementById('gamesPlayed').textContent = gamesPlayed;
+            document.getElementById('jackpotsWon').textContent = jackpotsWon;
+            const percent = gamesPlayed > 0 ? ((jackpotsWon / gamesPlayed) * 100).toFixed(1) : 0;
+            document.getElementById('luckPercent').textContent = `${percent}%`;
+        }
+
+        function resetStats() {
+            if (confirm('Сбросить всю статистику?')) {
+                gamesPlayed = 0;
+                jackpotsWon = 0;
+                saveStats();
+                updateStatsDisplay();
+            }
+        }
+
+        function incrementGames() {
+            gamesPlayed++;
+            saveStats();
+            updateStatsDisplay();
+        }
+
+        function incrementJackpots() {
+            jackpotsWon++;
+            saveStats();
+            updateStatsDisplay();
+        }
+
         // ---------- ГЛАВНАЯ АНИМИРОВАННАЯ ИГРА ----------
         async function playAnimated(command) {
             // Сброс состояния джекпота
             stopJackpotMusic();
             hideJackpotGif();
+
+            // Увеличиваем счётчик игр
+            incrementGames();
 
             // Расширение территории
             await showExpansion();
@@ -632,6 +733,7 @@
                 diceArea.classList.remove('active');
                 outputPanel.style.display = 'block';
                 outputPanel.innerText = "🎲 d20: 20 | Радужный\nРадужный | АВТОМАТИЧЕСКИЙ ДЖЕКПОТ 🔊";
+                incrementJackpots(); // + джекпот
                 startJackpotMusic();
                 return;
             }
@@ -706,6 +808,7 @@
                 riichiLine = `Риичи | d20+${color.rerolls}: ${eventRoll} | ${event.name} (+${event.bonus}) | 3d8: ${riichiRolls.join(' ')} → уравнивание: ${eq.equalized.join(' ')} | ${riichiResult}`;
                 
                 if (eq.jackpot) {
+                    incrementJackpots(); // + джекпот
                     riichiLine += ' 🔊';
                 } else {
                     stopJackpotMusic();
@@ -726,6 +829,7 @@
             }
             let finalStr = `${color.name} (${color.rerolls}) | d20: ${d20val} | 3d8: ${opt.final.join(' ')} → ${opt.resultType}`;
             if (opt.resultType === "ДЖЕКПОТ") {
+                incrementJackpots(); // + джекпот
                 finalStr += ' 🔊';
             }
             lines.push(finalStr);
@@ -755,6 +859,12 @@
         function playGame(command) {
             playAnimated(command).catch(console.error);
         }
+
+        // ---------- ИНИЦИАЛИЗАЦИЯ СТАТИСТИКИ ----------
+        window.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            document.getElementById('resetStatsBtn').addEventListener('click', resetStats);
+        });
     </script>
 </body>
 </html>
