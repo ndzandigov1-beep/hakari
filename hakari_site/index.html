@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>Киндзи Хакари · Финальная версия</title>
+    <style>
+        /* ---------- БАЗОВЫЕ СТИЛИ ---------- */
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: #0f1a1f;
+            color: #e6e9ef;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ---------- ФОН (ТАНЦУЮЩИЙ ХАКАРИ) ---------- */
+        .background-gif {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.2;
+            pointer-events: none;
+            object-fit: cover;
+        }
+
+        /* ---------- ГИФКА РАСШИРЕНИЯ ТЕРРИТОРИИ ---------- */
+        .expansion-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+        }
+        .expansion-overlay img { 
+            max-width: 90%; 
+            max-height: 90%; 
+            border-radius: 20px; 
+            box-shadow: 0 0 40px gold; 
+        }
+        .expansion-overlay.show { display: flex; }
+
+        /* ---------- КОНТЕЙНЕР ГИФКИ ДЖЕКПОТА (ВСЕГДА В ЦЕНТРЕ) ---------- */
+        .jackpot-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .jackpot-container.show {
+            visibility: visible;
+            opacity: 1;
+        }
+        .jackpot-gif {
+            max-width: 90vw;
+            max-height: 90vh;
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.8);
+            border: 4px solid gold;
+            display: block;
+        }
+
+        /* ---------- ОСНОВНОЙ КОНТЕЙНЕР ---------- */
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 800px;
+            width: 100%;
+            background: rgba(20, 30, 35, 0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 36px;
+            padding: 30px 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            border: 1px solid #3e5a63;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2em;
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #f2d872;
+            text-shadow: 0 0 5px #ffb347;
+            letter-spacing: 2px;
+        }
+        .sub {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #aac7d4;
+            font-style: italic;
+        }
+        .buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .btn {
+            border: none;
+            background: #2e4a55;
+            padding: 16px 30px;
+            font-size: 1.6em;
+            border-radius: 60px;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 10px 0 #0f1f24, 0 6px 20px black;
+            transition: 0.07s;
+            cursor: pointer;
+            flex: 0 1 auto;
+            min-width: 160px;
+            border: 1px solid #6f9faa;
+        }
+        .btn:active {
+            transform: translateY(10px);
+            box-shadow: 0 2px 0 #0f1f24, 0 6px 20px black;
+        }
+
+        /* ---------- ЗОНА АНИМАЦИИ КУБОВ ---------- */
+        .dice-area {
+            background: #0b171c;
+            border-radius: 24px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid #3e7b8a;
+            box-shadow: inset 0 0 15px #00000070;
+            min-height: 250px;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .dice-area.active { display: flex; }
+
+        .phase-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #ffd966;
+            text-shadow: 0 0 5px #b37300;
+            text-align: center;
+            margin-bottom: 5px;
+            letter-spacing: 2px;
+        }
+
+        .d20-row, .d8-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .dice-label {
+            font-size: 1.2em;
+            color: #aac7d4;
+            margin-right: 10px;
+        }
+
+        .dice {
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2em;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 8px 0 #0f1f24, 0 5px 15px black;
+            border: 2px solid #6f9faa;
+            transition: 0.1s, background 0.3s, border 0.3s;
+        }
+
+        /* Цвета кубов */
+        .dice.color-green { background: #2e7d32; border-color: #a5d6a5; }
+        .dice.color-red { background: #b71c1c; border-color: #ff8a80; }
+        .dice.color-gold { background: #b76e2e; border-color: #ffd95a; }
+        .dice.color-rainbow {
+            background: linear-gradient(45deg, #ff0000, #ff8000, #ffff00, #80ff00, #00ffff, #0080ff, #8000ff);
+            border-color: white;
+            text-shadow: 0 0 5px black;
+        }
+        .dice.d20 { background: #4a2e55; border-color: #aa6f9f; }
+        .dice.d20.color-green { background: #1f5a23; }
+        .dice.d20.color-red { background: #8e1a1a; }
+        .dice.d20.color-gold { background: #8f5a24; }
+        .dice.d20.color-rainbow { background: linear-gradient(45deg, #ff0000, #ff8000, #ffff00, #80ff00, #00ffff, #0080ff, #8000ff); }
+
+        .dice.reroll-target {
+            box-shadow: 0 0 15px #ffb347;
+            border-color: gold;
+        }
+
+        /* ---------- АНИМАЦИЯ ПОКАЧИВАНИЯ ---------- */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-2px, 0px) rotate(-2deg); }
+            40% { transform: translate(2px, -1px) rotate(2deg); }
+            60% { transform: translate(-1px, 2px) rotate(0deg); }
+            80% { transform: translate(1px, -1px) rotate(2deg); }
+            100% { transform: translate(0px, 0px) rotate(0deg); }
+        }
+        .dice.shake {
+            animation: shake 0.4s infinite;
+        }
+        .jackpot-container.shake .jackpot-gif {
+            animation: shake 0.5s infinite;
+        }
+
+        /* ---------- ТЕКСТОВЫЙ ВЫВОД ---------- */
+        .output {
+            background: #0b171c;
+            border-radius: 24px;
+            padding: 25px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            line-height: 1.6;
+            border: 1px solid #3e7b8a;
+            color: #d6edf0;
+            box-shadow: inset 0 0 15px #00000070;
+            min-height: 200px;
+        }
+
+        /* ---------- СТОП-КНОПКА ---------- */
+        .stop-button {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .stop-btn {
+            background: #a13d3d;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #4f1e1e;
+            transition: 0.07s;
+            border: 1px solid #d47c7c;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stop-btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 2px 0 #4f1e1e;
+        }
+
+        /* ---------- ПЕРЕКЛЮЧАТЕЛЬ ЗВУКА ---------- */
+        .sound-toggle {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            color: #aac7d4;
+            font-size: 0.9em;
+        }
+        .footer {
+            margin-top: 15px;
+            text-align: right;
+            color: #7799a0;
+            font-size: 0.85em;
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <!-- ФОН: танцующий Хакари (замени путь) -->
+    <img class="background-gif" src="hakari-dance.gif" alt="Hakari dance" loop="true">
+
+    <!-- ГИФКА РАСШИРЕНИЯ ТЕРРИТОРИИ -->
+    <div id="expansionOverlay" class="expansion-overlay">
+        <img src="expansion.gif" alt="Расширение территории">
+    </div>
+
+    <!-- КОНТЕЙНЕР ГИФКИ ДЖЕКПОТА (ВСЕГДА В ЦЕНТРЕ) -->
+    <div id="jackpotContainer" class="jackpot-container">
+        <img id="jackpotGif" class="jackpot-gif" src="jackpot.gif" alt="JACKPOT!">
+    </div>
+
+    <!-- ОСНОВНОЙ КОНТЕЙНЕР -->
+    <div class="container">
+        <h1>🚪🎱 Киндзи Хакари</h1>
+        <div class="sub">Створчатые двери · Запасные шары</div>
+        <div class="buttons">
+            <button class="btn" onclick="playGame('Дверь')">🚪 Дверь</button>
+            <button class="btn" onclick="playGame('Шар')">🎱 Шар</button>
+        </div>
+
+        <!-- ЗОНА АНИМАЦИИ КУБОВ -->
+        <div id="diceArea" class="dice-area">
+            <div id="phaseTitle" class="phase-title">⚡ Основной бросок ⚡</div>
+            <div class="d20-row">
+                <span class="dice-label">d20:</span>
+                <div id="animD20" class="dice d20">20</div>
+            </div>
+            <div class="d8-row">
+                <span class="dice-label">3d8:</span>
+                <div id="animD8_1" class="dice">1</div>
+                <div id="animD8_2" class="dice">1</div>
+                <div id="animD8_3" class="dice">1</div>
+            </div>
+        </div>
+
+        <!-- ТЕКСТОВЫЙ ВЫВОД -->
+        <div class="output" id="outputPanel">🎲 Нажми кнопку, чтобы начать</div>
+        
+        <!-- КНОПКА ОСТАНОВКИ ДЖЕКПОТА -->
+        <div id="stopJackpotContainer" class="stop-button hidden">
+            <button id="stopJackpotBtn" class="stop-btn" onclick="stopJackpot()">
+                🔇 Закончить Джекпот
+            </button>
+        </div>
+        
+        <div class="sound-toggle">
+            <span>🔊 Звук джекпота</span>
+            <label style="display: flex; align-items: center;">
+                <input type="checkbox" id="soundCheckbox" checked> Вкл.
+            </label>
+        </div>
+        <div class="footer">баланс 30% · цветные кубы · тряска · гифка на 18с</div>
+    </div>
+
+    <!-- АУДИО -->
+    <audio id="jackpotSound" preload="auto" loop="false">
+        <source src="tuca-donka.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="expansionSound" preload="auto">
+        <source src="expansion.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // ---------- НАСТРОЙКИ ----------
+        const JACKPOT_GIF_DELAY = 19400; // ⬅️ 19.4 секунд – ровно в момент слова "ДЖЕКПОТ!"
+
+        // ---------- ТАБЛИЦЫ БАЛАНСА (30%) ----------
+        const COLOR_TABLE = [
+            { lo: 1, hi: 10, name: "Зелёный", rerolls: 1 },
+            { lo: 11, hi: 15, name: "Красный", rerolls: 2 },
+            { lo: 16, hi: 19, name: "Золотой", rerolls: 4 },
+            { lo: 20, hi: 20, name: "Радужный", rerolls: 0 }
+        ];
+
+        const EVENT_TABLE = [
+            { lo: 1, hi: 9, name: "Транспортные ворота", bonus: 1 },
+            { lo: 10, hi: 14, name: "Конкурс пассажирских мест", bonus: 2 },
+            { lo: 15, hi: 18, name: "Потерпите до ванной", bonus: 4 },
+            { lo: 19, hi: 100, name: "Последний поезд", bonus: 6 }
+        ];
+
+        // ---------- ИГРОВАЯ ЛОГИКА ----------
+        function d20() { return Math.floor(Math.random() * 20) + 1; }
+        function d8()  { return Math.floor(Math.random() * 8) + 1; }
+        function roll3d8() { return [d8(), d8(), d8()]; }
+
+        function evaluateRoll(rolls) {
+            const [a,b,c] = rolls;
+            if (a === b && b === c) return "ДЖЕКПОТ";
+            if (a === b || a === c || b === c) return "РИИЧИ";
+            return "НИЧЕГО";
+        }
+
+        function scoreRoll(rolls) {
+            const type = evaluateRoll(rolls);
+            let rank = (type === "ДЖЕКПОТ") ? 2 : (type === "РИИЧИ") ? 1 : 0;
+            return { rank, sum: rolls.reduce((s,v)=>s+v,0) };
+        }
+
+        // ОПТИМИЗАЦИЯ ПЕРЕБРОСОВ (ЗАПРЕЩЕНА МАСКА 7)
+        function optimizeRolls(initialRolls, maxRerolls) {
+            let bestFinal = initialRolls.slice();
+            let bestScore = scoreRoll(initialRolls);
+            let bestHistory = [];
+            let bestRerollsUsed = 0;
+
+            function dfs(current, remaining, steps, stepNum) {
+                const curScore = scoreRoll(current);
+                if (curScore.rank > bestScore.rank || 
+                   (curScore.rank === bestScore.rank && curScore.sum > bestScore.sum)) {
+                    bestFinal = current.slice();
+                    bestScore = curScore;
+                    bestHistory = steps.slice();
+                    bestRerollsUsed = stepNum;
+                }
+                if (remaining === 0 || evaluateRoll(current) === "ДЖЕКПОТ") return;
+
+                for (let mask = 1; mask <= 6; mask++) {
+                    const indices = [];
+                    if (mask & 1) indices.push(0);
+                    if (mask & 2) indices.push(1);
+                    if (mask & 4) indices.push(2);
+                    const newRolls = current.slice();
+                    for (let i of indices) newRolls[i] = d8();
+                    const newState = newRolls.slice();
+                    const step = {
+                        step: stepNum + 1,
+                        indices: indices.map(i => i+1),
+                        newRolls: newState.slice()
+                    };
+                    dfs(newState, remaining - 1, steps.concat([step]), stepNum + 1);
+                }
+            }
+
+            dfs(initialRolls.slice(), maxRerolls, [], 0);
+            return {
+                initial: initialRolls.slice(),
+                final: bestFinal,
+                resultType: evaluateRoll(bestFinal),
+                history: bestHistory,
+                rerollsUsed: bestRerollsUsed
+            };
+        }
+
+        // УРАВНИВАНИЕ
+        function equalizeWithBonus(rolls, bonus) {
+            let bestTarget = null;
+            let bestCost = Infinity;
+            let bestResult = null;
+            for (let target = 1; target <= 8; target++) {
+                const cost = Math.abs(rolls[0]-target) + Math.abs(rolls[1]-target) + Math.abs(rolls[2]-target);
+                if (cost <= bonus) {
+                    if (cost < bestCost || (cost === bestCost && target > bestTarget)) {
+                        bestCost = cost;
+                        bestTarget = target;
+                        bestResult = [target, target, target];
+                    }
+                }
+            }
+            return bestResult ? { equalized: bestResult, jackpot: true } : { equalized: rolls.slice(), jackpot: false };
+        }
+
+        // ---------- УПРАВЛЕНИЕ ЦВЕТОМ КУБОВ ----------
+        function setDiceColor(colorName) {
+            const d20El = document.getElementById('animD20');
+            const d8Els = [
+                document.getElementById('animD8_1'),
+                document.getElementById('animD8_2'),
+                document.getElementById('animD8_3')
+            ];
+            const colorClasses = ['color-green', 'color-red', 'color-gold', 'color-rainbow'];
+            d20El.classList.remove(...colorClasses);
+            d8Els.forEach(el => el.classList.remove(...colorClasses));
+            
+            let colorClass = '';
+            switch(colorName) {
+                case 'Зелёный': colorClass = 'color-green'; break;
+                case 'Красный': colorClass = 'color-red'; break;
+                case 'Золотой': colorClass = 'color-gold'; break;
+                case 'Радужный': colorClass = 'color-rainbow'; break;
+                default: return;
+            }
+            d20El.classList.add(colorClass);
+            d8Els.forEach(el => el.classList.add(colorClass));
+        }
+
+        // ---------- УПРАВЛЕНИЕ МУЗЫКОЙ, ГИФКОЙ, СТОП-КНОПКОЙ ----------
+        let jackpotTimer = null;
+        let jackpotAudioPlaying = false;
+
+        function startJackpotMusic() {
+            const soundEnabled = document.getElementById('soundCheckbox').checked;
+            if (!soundEnabled) return;
+            const audio = document.getElementById('jackpotSound');
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(e => console.log('Аудио не загружено'));
+                jackpotAudioPlaying = true;
+                document.getElementById('stopJackpotContainer').classList.remove('hidden');
+                
+                if (jackpotTimer) clearTimeout(jackpotTimer);
+                jackpotTimer = setTimeout(() => {
+                    showJackpotGif();
+                }, JACKPOT_GIF_DELAY);
+            }
+        }
+
+        function stopJackpotMusic() {
+            const audio = document.getElementById('jackpotSound');
+            if (audio && jackpotAudioPlaying) {
+                audio.pause();
+                audio.currentTime = 0;
+                jackpotAudioPlaying = false;
+            }
+            document.getElementById('stopJackpotContainer').classList.add('hidden');
+            if (jackpotTimer) {
+                clearTimeout(jackpotTimer);
+                jackpotTimer = null;
+            }
+            hideJackpotGif();
+        }
+
+        // ---------- ГИФКА ДЖЕКПОТА - ВСЕГДА В ЦЕНТРЕ ----------
+        function showJackpotGif() {
+            const container = document.getElementById('jackpotContainer');
+            const gif = document.getElementById('jackpotGif');
+            if (container && gif) {
+                // Перезапуск гифки без изменения позиции контейнера
+                const baseSrc = gif.src.split('?')[0];
+                gif.src = baseSrc + '?t=' + Date.now();
+                
+                // Показываем контейнер и трясём
+                container.classList.add('show');
+                container.classList.add('shake');
+                
+                // Через 1.5 сек убираем тряску
+                setTimeout(() => {
+                    container.classList.remove('shake');
+                }, 1500);
+            }
+        }
+
+        function hideJackpotGif() {
+            const container = document.getElementById('jackpotContainer');
+            if (container) {
+                container.classList.remove('show');
+                container.classList.remove('shake');
+            }
+        }
+
+        function stopJackpot() {
+            stopJackpotMusic();
+            const container = document.getElementById('jackpotContainer');
+            if (container) container.classList.remove('shake');
+        }
+
+        // ---------- АНИМАЦИЯ КУБОВ (С ПОКАЧИВАНИЕМ) ----------
+        function animateDice(element, startVal, endVal, duration, isD8 = true) {
+            return new Promise((resolve) => {
+                element.classList.add('shake');
+                const frames = 25;
+                const stepTime = duration / frames;
+                let currentFrame = 0;
+                const interval = setInterval(() => {
+                    if (currentFrame < frames - 1) {
+                        const randomVal = isD8 ? Math.floor(Math.random() * 8) + 1 : Math.floor(Math.random() * 20) + 1;
+                        element.textContent = randomVal;
+                        currentFrame++;
+                    } else {
+                        clearInterval(interval);
+                        element.textContent = endVal;
+                        element.classList.remove('shake');
+                        resolve();
+                    }
+                }, stepTime);
+            });
+        }
+
+        async function animateD20Roll(element, finalValue, duration = 2000) {
+            await animateDice(element, 1, finalValue, duration, false);
+        }
+
+        async function animateD8Roll(elements, finalValues, duration = 2500) {
+            const promises = elements.map((el, idx) => 
+                animateDice(el, 1, finalValues[idx], duration, true)
+            );
+            await Promise.all(promises);
+        }
+
+        async function animateReroll(d8elements, indices, newValues, duration = 1200) {
+            indices.forEach(i => d8elements[i].classList.add('reroll-target'));
+            await new Promise(r => setTimeout(r, 200));
+            const promises = indices.map(i => 
+                animateDice(d8elements[i], 1, newValues[i], duration, true)
+            );
+            await Promise.all(promises);
+            indices.forEach(i => d8elements[i].classList.remove('reroll-target'));
+        }
+
+        // ---------- ГЛАВНАЯ АНИМИРОВАННАЯ ИГРА ----------
+        async function playAnimated(command) {
+            // Сброс состояния джекпота
+            stopJackpotMusic();
+            hideJackpotGif();
+
+            // Расширение территории
+            await showExpansion();
+
+            const diceArea = document.getElementById('diceArea');
+            const phaseTitle = document.getElementById('phaseTitle');
+            const outputPanel = document.getElementById('outputPanel');
+            const d20El = document.getElementById('animD20');
+            const d8Els = [
+                document.getElementById('animD8_1'),
+                document.getElementById('animD8_2'),
+                document.getElementById('animD8_3')
+            ];
+
+            outputPanel.style.display = 'none';
+            diceArea.classList.add('active');
+
+            // Генерация данных
+            const d20val = d20();
+            let color = null;
+            for (let c of COLOR_TABLE) {
+                if (d20val >= c.lo && d20val <= c.hi) {
+                    color = { name: c.name, rerolls: c.rerolls, isRainbow: c.name === "Радужный" };
+                    break;
+                }
+            }
+            if (!color) return;
+
+            setDiceColor(color.name);
+
+            // Радуга — авто-джекпот
+            if (color.isRainbow) {
+                diceArea.classList.remove('active');
+                outputPanel.style.display = 'block';
+                outputPanel.innerText = "🎲 d20: 20 | Радужный\nРадужный | АВТОМАТИЧЕСКИЙ ДЖЕКПОТ 🔊";
+                startJackpotMusic();
+                return;
+            }
+
+            const initial = roll3d8();
+            const opt = optimizeRolls(initial, color.rerolls);
+
+            // ЗАПУСК МУЗЫКИ — сразу после данных, перед анимацией
+            startJackpotMusic();
+
+            // 1. Основной бросок
+            phaseTitle.innerText = '⚡ Основной бросок ⚡';
+            await animateD20Roll(d20El, d20val, 2000);
+            await animateD8Roll(d8Els, opt.initial, 2500);
+            await new Promise(r => setTimeout(r, 300));
+
+            // 2. Перебросы
+            for (let i = 0; i < opt.history.length; i++) {
+                const step = opt.history[i];
+                phaseTitle.innerText = `🔄 Переброс ${step.step} из ${color.rerolls} 🔄`;
+                const indices = step.indices.map(i => i - 1);
+                const newVals = step.newRolls;
+                await animateReroll(d8Els, indices, newVals, 1200);
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            // Финальные значения
+            for (let i = 0; i < 3; i++) {
+                if (d8Els[i].textContent != opt.final[i]) {
+                    d8Els[i].textContent = opt.final[i];
+                }
+            }
+
+            // Если не джекпот и не риичи — музыка стоп
+            if (opt.resultType !== "ДЖЕКПОТ" && opt.resultType !== "РИИЧИ") {
+                stopJackpotMusic();
+            }
+
+            await new Promise(r => setTimeout(r, 400));
+
+            // ---------- РИИЧИ ----------
+            let riichiLine = '';
+            if (opt.resultType === "РИИЧИ") {
+                phaseTitle.innerText = '🎲 Событие: РИИЧИ 🎲';
+                
+                const eventD20 = d20();
+                const eventRoll = eventD20 + color.rerolls;
+                let event = null;
+                for (let e of EVENT_TABLE) {
+                    if (eventRoll >= e.lo && eventRoll <= e.hi) {
+                        event = { name: e.name, bonus: e.bonus };
+                        break;
+                    }
+                }
+                if (!event) event = { name: "Последний поезд", bonus: 6 };
+
+                await animateD20Roll(d20El, eventD20, 1500);
+
+                const riichiRolls = roll3d8();
+                await animateD8Roll(d8Els, riichiRolls, 2000);
+
+                phaseTitle.innerText = `✨ Уравнивание (+${event.bonus}) ✨`;
+                const eq = equalizeWithBonus(riichiRolls, event.bonus);
+                for (let i = 0; i < 3; i++) {
+                    d8Els[i].textContent = eq.equalized[i];
+                }
+                d8Els.forEach(el => el.classList.add('reroll-target'));
+                await new Promise(r => setTimeout(r, 600));
+                d8Els.forEach(el => el.classList.remove('reroll-target'));
+
+                const riichiResult = eq.jackpot ? "ДЖЕКПОТ" : "НИЧЕГО";
+                riichiLine = `Риичи | d20+${color.rerolls}: ${eventRoll} | ${event.name} (+${event.bonus}) | 3d8: ${riichiRolls.join(' ')} → уравнивание: ${eq.equalized.join(' ')} | ${riichiResult}`;
+                
+                if (eq.jackpot) {
+                    riichiLine += ' 🔊';
+                } else {
+                    stopJackpotMusic();
+                }
+            }
+
+            // ---------- ЗАВЕРШЕНИЕ ----------
+            diceArea.classList.remove('active');
+            outputPanel.style.display = 'block';
+
+            let lines = [];
+            lines.push(`🎲 d20: ${d20val} | ${color.name} (${color.rerolls} переброс${color.rerolls===1?'' : 'а'})`);
+            lines.push(`Начальные 3d8: ${opt.initial.join(' ')}`);
+            if (opt.history.length > 0) {
+                let states = [opt.initial.join(' ')];
+                for (let step of opt.history) states.push(step.newRolls.join(' '));
+                lines.push(`Перебросы: ${states.join(' > ')}`);
+            }
+            let finalStr = `${color.name} (${color.rerolls}) | d20: ${d20val} | 3d8: ${opt.final.join(' ')} → ${opt.resultType}`;
+            if (opt.resultType === "ДЖЕКПОТ") {
+                finalStr += ' 🔊';
+            }
+            lines.push(finalStr);
+            if (riichiLine) lines.push(riichiLine);
+
+            outputPanel.innerText = lines.join('\n');
+        }
+
+        // ---------- РАСШИРЕНИЕ ТЕРРИТОРИИ ----------
+        function showExpansion() {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('expansionOverlay');
+                const sound = document.getElementById('expansionSound');
+                overlay.classList.add('show');
+                if (sound) {
+                    sound.currentTime = 0;
+                    sound.play().catch(e => console.log('Нет звука расширения'));
+                }
+                setTimeout(() => {
+                    overlay.classList.remove('show');
+                    resolve();
+                }, 1800);
+            });
+        }
+
+        // ---------- ОБЁРТКА ДЛЯ КНОПОК ----------
+        function playGame(command) {
+            playAnimated(command).catch(console.error);
+        }
+    </script>
+</body>
+</html>
